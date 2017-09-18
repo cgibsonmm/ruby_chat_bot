@@ -22,7 +22,29 @@ class Bot
     random_response :farwell
   end
 
+  def response_to(input)
+    prepared_input = preprocess(input).downcase
+    sentence = best_sentence(prepared_input)
+  end 
+
   private
+
+  def best_sentence(input)
+    hot_words = @data[:responses].keys.select do |k|
+      k.class == String && k =~ /^\w+$/
+    end
+
+    WordPlay.best_sentence(input.sentences, hot_words)
+  end
+
+  def preprocess(input)
+    perform_substitutions(input)
+  end
+
+  def perform_substitutions(input)
+    @data[:presub].each { |s| input.gsub!(s[0], s[1])}
+    input
+  end
 
   def random_response(key)
     random_index = rand(@data[:response][key].length)
