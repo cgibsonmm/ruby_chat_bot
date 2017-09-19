@@ -1,5 +1,5 @@
 require 'yaml'
-require 'wordplay'
+require_relative 'wordplay'
 
 class Bot
   attr_reader :name
@@ -7,7 +7,7 @@ class Bot
   def initialize(options)
     @name = options[:name] || 'Unnamed Bot'
     begin
-      @data = YAML.load(File.(options[:data_file]))
+      @data = YAML.load(File.read(options[:data_file]))
     rescue
       raise "Can't load bot data"
     end
@@ -23,15 +23,15 @@ class Bot
   end
 
   def response_to(input)
-    prepared_input = preprocess(input).downcase
+    prepared_input = preprocess(input.downcase)
     sentence = best_sentence(prepared_input)
     responses = possible_responses(sentence)
     responses[rand(responses.length)]
-  end 
+  end
 
   private
 
-  def possible_responses(sentence )
+  def possible_responses(sentence)
     responses = []
 
     # find all patterns to try to match aganist
@@ -41,16 +41,19 @@ class Bot
       # For each pattern, see if the supplied sentences
       # contains a match. Remove susbstitution symbols (*)
       # before checking. Push all responses to array.
-      if sentences.match('\b' + pattern.gsub(/\*/, '') + '\b')
-        responses << @data[:responses][pattern]
+      if sentence.match('\b' + pattern.gsub(/\*/, '') + '\b')
         # if the pattern contains substitution placeholders,
         # pefrorm the susbstitutions
         if pattern.include?('*')
           responses << @data[:responses][pattern].collect do |phrase|
             # first erase everything before the placeholder,
             # leaving everything after it.
-            mathing_section = sentences.sub('*', WordPlay.switch_pronouns(mathing_section))
-          end 
+            matching_section = sentence.sub(/\^.*#{pattern}\s+/, '')
+
+            # Then substitute the text after the placeholder, with the
+            # pronouns switched
+            phrase.sub('*', WordPlay.switch_pronouns(matching_section))
+          end
         else
           # No placeholders? Just add the phrases to the array
           responses << @data[:responses][pattern]
@@ -78,12 +81,12 @@ class Bot
   end
 
   def perform_substitutions(input)
-    @data[:presub].each { |s| input.gsub!(s[0], s[1])}
+    @data[:presubs].each { |s| input.gsub!(s[0], s[1]) }
     input
   end
 
   def random_response(key)
-    random_index = rand(@data[:response][key].length)
-    @data[:response][key][random_index].gsub(/\[name\]/, @name)
+    random_index = rand(@data[:responses][key].length)
+    @data[:responses][key][random_index].gsub(/\[name\]/, @name)
   end
 end
